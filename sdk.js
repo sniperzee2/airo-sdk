@@ -88,15 +88,14 @@ class AskAiroChat {
     const button = document.createElement("button");
     const position = options?.position || "bottom-right";
     const buttonSize = options?.buttonSize || 60;
-    const buttonColor = options?.buttonColor || "#3b82f6";
+    // Airo brand color: blue-500 to blue-600 gradient (using blue-600 as default)
+    const buttonColor = options?.buttonColor || "#2563eb";
     const zIndex = options?.zIndex || 9999;
     const offset = options?.offset || 20;
 
-    // Chat icon SVG (default - when closed)
-    const chatIcon = `
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; fill: white;">
-        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-      </svg>
+    // Airo Sparkles icon SVG (default - when closed) - matches the app's icon
+    const airoIcon = `
+     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path></svg>
     `;
 
     // Close/X icon SVG (when open)
@@ -106,7 +105,7 @@ class AskAiroChat {
       </svg>
     `;
 
-    button.innerHTML = chatIcon;
+    button.innerHTML = airoIcon;
 
     button.setAttribute('aria-label', 'Open Ask Airo Chat');
     button.setAttribute('role', 'button');
@@ -267,19 +266,19 @@ class AskAiroChat {
   updateButtonIcon(isOpen) {
     if (!this.button) return;
 
-    const chatIcon = `
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; fill: white;">
-        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-      </svg>
+    // Airo Sparkles icon (when closed)
+    const airoIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path></svg>
     `;
 
+    // Close/X icon (when open)
     const closeIcon = `
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; fill: white;">
         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
       </svg>
     `;
 
-    this.button.innerHTML = isOpen ? closeIcon : chatIcon;
+    this.button.innerHTML = isOpen ? closeIcon : airoIcon;
     this.button.setAttribute('aria-label', isOpen ? 'Close Ask Airo Chat' : 'Open Ask Airo Chat');
   }
 
