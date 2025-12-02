@@ -300,8 +300,13 @@ class AskAiroChat {
   }
 }
 
-// Initialize widget when script loads (for script tag usage)
+// Initialize widget when script loads (for script tag usage with data attributes)
 function initWidget() {
+  // Skip if user already created an instance manually
+  if (window.AuraChatWidget && window.AuraChatWidget instanceof AskAiroChat) {
+    return window.AuraChatWidget;
+  }
+  
   // Get config from data attributes or global config
   const script = document.currentScript || 
     document.querySelector('script[data-aura-config]') ||
@@ -329,31 +334,27 @@ function initWidget() {
     config = { ...config, ...window.AuraChatConfig };
   }
   
+  // Only auto-initialize if config is provided (via data attributes or global config)
+  if (Object.keys(config).length === 0) {
+    return null; // Don't auto-initialize if no config provided
+  }
+  
   // Create widget instance
   const widget = new AskAiroChat(config);
   
   // Expose widget to window for programmatic control (backward compatibility)
   if (typeof window !== 'undefined') {
     window.AuraChatWidget = widget;
-    window.AskAiroChat = AskAiroChat;
   }
   
   return widget;
 }
 
-// Auto-initialize when DOM is ready (only for script tag usage, not ES modules)
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  // Only auto-init if this is loaded as a script tag (not ES module)
-  const isESModule = typeof import.meta !== 'undefined' && import.meta.url;
-  const isScriptTag = !isESModule && (typeof module === 'undefined' || typeof module.exports === 'undefined');
-  
-  if (isScriptTag) {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initWidget);
-    } else {
-      initWidget();
-    }
-  }
+// Export for global window (script tag usage) - must be first
+if (typeof window !== 'undefined') {
+  window.AskAiroChat = AskAiroChat;
+  // Backward compatibility
+  window.AuraChatWidget = AskAiroChat;
 }
 
 // Export for CommonJS
@@ -361,13 +362,19 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = AskAiroChat;
 }
 
-// Export for global window (script tag usage)
-if (typeof window !== 'undefined') {
-  window.AskAiroChat = AskAiroChat;
-  // Backward compatibility
-  window.AuraChatWidget = AskAiroChat;
+// Auto-initialize when DOM is ready (only for script tag usage)
+// Check if we're in a browser environment
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  // Only auto-init if this is loaded as a script tag (not CommonJS/Node.js)
+  const isNode = typeof module !== 'undefined' && module.exports;
+  
+  if (!isNode) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initWidget);
+    } else {
+      // DOM already ready, initialize immediately
+      setTimeout(initWidget, 0);
+    }
+  }
 }
-
-// Export for ES modules
-export { AskAiroChat };
 
