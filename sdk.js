@@ -22,6 +22,7 @@ const IFRAME_SRC_MAP = {
 class AskAiroChat {
   isIframePresent = false;
   isReady = false;
+  isOpen = false;
 
   MESSAGE_TYPES = {
     IS_READY: "is_ready",
@@ -38,20 +39,21 @@ class AskAiroChat {
   constructor(options = {}) {
     if (this.isIframePresent) return;
 
-    const iframe = document.createElement("IFRAME");
     const env = options?.env || ENV.PRODUCTION;
     const baseUrl = options?.baseUrl || IFRAME_SRC_MAP[env];
     const IFRAME_SRC = `${baseUrl}/chat`;
 
-    iframe.src = IFRAME_SRC;
-    this.iframe = iframe;
     this.baseUrl = baseUrl;
     this.options = options;
+    this.iframeSrc = IFRAME_SRC;
 
-    document.body.appendChild(this.iframe);
+    // Create button
+    this.createButton(options);
+
+    // Create iframe container
+    this.createIframeContainer(options);
+
     this.isIframePresent = true;
-
-    this.setStyles(options);
 
     const handleMessage = (event) => {
       // Allow messages from the base URL (without path)
@@ -66,14 +68,9 @@ class AskAiroChat {
         this.isReady = true;
       } else if (event.data?.type === this.MESSAGE_TYPES.IS_CHATBOX_OPEN) {
         if (event.data.data) {
-          this.iframe.style.width = this.OPEN_CHAT_WIDTH;
-          this.iframe.style.height = this.OPEN_CHAT_HEIGHT;
-          this.iframe.style.boxShadow =
-            "rgba(0, 0, 0, 0.3) 0 20px 60px, rgba(0, 0, 0, 0.2) 0 8px 24px";
+          this.open();
         } else {
-          this.iframe.style.width = this.CLOSED_CHAT_WIDTH;
-          this.iframe.style.height = this.CLOSED_CHAT_HEIGHT;
-          this.iframe.style.boxShadow = "none";
+          this.close();
         }
       }
     };
@@ -87,64 +84,234 @@ class AskAiroChat {
     }, 100);
   }
 
+  createButton(options) {
+    const button = document.createElement("button");
+    const position = options?.position || "bottom-right";
+    const buttonSize = options?.buttonSize || 60;
+    const buttonColor = options?.buttonColor || "#3b82f6";
+    const zIndex = options?.zIndex || 9999;
+    const offset = options?.offset || 20;
+
+    button.innerHTML = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; fill: white;">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+      </svg>
+    `;
+
+    button.setAttribute('aria-label', 'Open Ask Airo Chat');
+    button.setAttribute('role', 'button');
+    button.style.cssText = `
+      position: fixed;
+      width: ${buttonSize}px;
+      height: ${buttonSize}px;
+      border-radius: 50%;
+      background: ${buttonColor};
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: ${zIndex};
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 0;
+      outline: none;
+    `;
+
+    // Set position
+    if (position === "bottom-right") {
+      button.style.bottom = `${offset}px`;
+      button.style.right = `${offset}px`;
+    } else if (position === "bottom-left") {
+      button.style.bottom = `${offset}px`;
+      button.style.left = `${offset}px`;
+    } else if (position === "top-right") {
+      button.style.top = `${offset}px`;
+      button.style.right = `${offset}px`;
+    } else if (position === "top-left") {
+      button.style.top = `${offset}px`;
+      button.style.left = `${offset}px`;
+    }
+
+    // Allow custom positioning
+    if (options?.bottom !== undefined) button.style.bottom = options.bottom;
+    if (options?.top !== undefined) button.style.top = options.top;
+    if (options?.left !== undefined) button.style.left = options.left;
+    if (options?.right !== undefined) button.style.right = options.right;
+
+    button.addEventListener("mouseenter", () => {
+      button.style.transform = "scale(1.1)";
+      button.style.boxShadow = "0 6px 16px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.15)";
+    });
+
+    button.addEventListener("mouseleave", () => {
+      button.style.transform = "scale(1)";
+      button.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)";
+    });
+
+    button.addEventListener("click", () => {
+      this.toggle();
+    });
+
+    document.body.appendChild(button);
+    this.button = button;
+  }
+
+  createIframeContainer(options) {
+    const container = document.createElement("div");
+    const iframe = document.createElement("iframe");
+    const position = options?.position || "bottom-right";
+    const buttonSize = options?.buttonSize || 60;
+    const zIndex = (options?.zIndex || 9999) - 1;
+    const offset = options?.offset || 20;
+    const iframeWidth = options?.iframeWidth || 400;
+    const iframeHeight = options?.iframeHeight || 600;
+
+    iframe.src = this.iframeSrc;
+    iframe.frameBorder = "0";
+    iframe.style.cssText = `
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    `;
+    iframe.setAttribute('allow', 'microphone; camera');
+    iframe.setAttribute('title', 'Ask Airo Chat');
+
+    // Close button
+    const closeButton = document.createElement("button");
+    closeButton.innerHTML = "×";
+    closeButton.setAttribute('aria-label', 'Close chat');
+    closeButton.style.cssText = `
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: ${zIndex + 1};
+      transition: all 0.2s;
+      color: white;
+      font-size: 20px;
+      line-height: 1;
+      padding: 0;
+    `;
+
+    closeButton.addEventListener("mouseenter", () => {
+      closeButton.style.background = "rgba(0, 0, 0, 0.7)";
+      closeButton.style.transform = "rotate(90deg)";
+    });
+
+    closeButton.addEventListener("mouseleave", () => {
+      closeButton.style.background = "rgba(0, 0, 0, 0.5)";
+      closeButton.style.transform = "rotate(0deg)";
+    });
+
+    closeButton.addEventListener("click", () => {
+      this.close();
+    });
+
+    container.appendChild(closeButton);
+    container.appendChild(iframe);
+
+    container.style.cssText = `
+      position: fixed;
+      width: ${iframeWidth}px;
+      height: ${iframeHeight}px;
+      z-index: ${zIndex};
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+      opacity: 0;
+      transform: scale(0.8) translateY(20px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      background: white;
+    `;
+
+    // Set position based on button position
+    if (position === "bottom-right") {
+      container.style.bottom = `${buttonSize + offset + 10}px`;
+      container.style.right = `${offset}px`;
+    } else if (position === "bottom-left") {
+      container.style.bottom = `${buttonSize + offset + 10}px`;
+      container.style.left = `${offset}px`;
+    } else if (position === "top-right") {
+      container.style.top = `${buttonSize + offset + 10}px`;
+      container.style.right = `${offset}px`;
+    } else if (position === "top-left") {
+      container.style.top = `${buttonSize + offset + 10}px`;
+      container.style.left = `${offset}px`;
+    }
+
+    // Mobile responsive
+    const mobileStyle = `
+      @media (max-width: 480px) {
+        #${container.id || 'aura-chat-container'} {
+          width: 100vw !important;
+          height: 100vh !important;
+          border-radius: 0 !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+        }
+      }
+    `;
+
+    // Inject mobile styles if not already present
+    if (!document.getElementById('aura-chat-mobile-styles')) {
+      const style = document.createElement('style');
+      style.id = 'aura-chat-mobile-styles';
+      style.textContent = mobileStyle;
+      document.head.appendChild(style);
+    }
+
+    container.id = 'aura-chat-container-' + Date.now();
+    document.body.appendChild(container);
+    this.container = container;
+    this.iframe = iframe;
+  }
+
   sendMessage(data) {
     if (this.iframe && this.iframe.contentWindow) {
       this.iframe.contentWindow.postMessage(data, "*");
     }
   }
 
-  setStyles(options) {
-    const position = options?.position || "bottom-right";
-    const buttonSize = options?.buttonSize || 60;
-    const buttonColor = options?.buttonColor || "#3b82f6";
-    const zIndex = options?.zIndex || 9999;
-
-    this.iframe.frameBorder = "0";
-    this.iframe.style.width = `${buttonSize}px`;
-    this.iframe.style.height = `${buttonSize}px`;
-    this.iframe.style.border = "none";
-    this.iframe.style.position = "fixed";
-    this.iframe.style.zIndex = zIndex;
-    this.iframe.style.borderRadius = "50%";
-    this.iframe.style.overflow = "hidden";
-    this.iframe.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
-    this.iframe.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)";
-
-    // Set position based on options
-    const offset = options?.offset || 20;
-    if (position === "bottom-right") {
-      this.iframe.style.bottom = `${offset}px`;
-      this.iframe.style.right = `${offset}px`;
-      this.iframe.style.left = "auto";
-      this.iframe.style.top = "auto";
-    } else if (position === "bottom-left") {
-      this.iframe.style.bottom = `${offset}px`;
-      this.iframe.style.left = `${offset}px`;
-      this.iframe.style.right = "auto";
-      this.iframe.style.top = "auto";
-    } else if (position === "top-right") {
-      this.iframe.style.top = `${offset}px`;
-      this.iframe.style.right = `${offset}px`;
-      this.iframe.style.left = "auto";
-      this.iframe.style.bottom = "auto";
-    } else if (position === "top-left") {
-      this.iframe.style.top = `${offset}px`;
-      this.iframe.style.left = `${offset}px`;
-      this.iframe.style.right = "auto";
-      this.iframe.style.bottom = "auto";
+  open() {
+    if (this.isOpen) return;
+    this.isOpen = true;
+    this.container.style.opacity = "1";
+    this.container.style.transform = "scale(1) translateY(0)";
+    this.container.style.pointerEvents = "all";
+    this.button.style.transform = "scale(0.9)";
+    if (this.iframe) {
+      this.iframe.focus();
     }
+  }
 
-    // Allow custom positioning
-    if (options?.bottom !== undefined) this.iframe.style.bottom = options.bottom;
-    if (options?.top !== undefined) this.iframe.style.top = options.top;
-    if (options?.left !== undefined) this.iframe.style.left = options.left;
-    if (options?.right !== undefined) this.iframe.style.right = options.right;
+  close() {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.container.style.opacity = "0";
+    this.container.style.transform = "scale(0.8) translateY(20px)";
+    this.container.style.pointerEvents = "none";
+    this.button.style.transform = "scale(1)";
+  }
 
-    // Send styles to iframe if needed
-    this.sendMessage({
-      type: this.MESSAGE_TYPES.SET_STYLES,
-      data: options,
-    });
+  toggle() {
+    if (this.isOpen) {
+      this.close();
+    } else {
+      this.open();
+    }
   }
 
   // Track URL changes and send to iframe
@@ -179,29 +346,25 @@ class AskAiroChat {
   }
 
   // Public API methods
-  open() {
-    this.sendMessage({ type: "open_chat" });
-  }
-
-  close() {
-    this.sendMessage({ type: "close_chat" });
-  }
-
-  toggle() {
-    this.sendMessage({ type: "toggle_chat" });
-  }
-
   updateConfig(newConfig) {
     this.options = { ...this.options, ...newConfig };
-    this.setStyles(this.options);
+    // Recreate button and container with new config
+    this.destroy();
+    this.isIframePresent = false;
+    const newInstance = new AskAiroChat(this.options);
+    Object.assign(this, newInstance);
   }
 
   destroy() {
-    if (this.iframe && this.iframe.parentNode) {
-      this.iframe.parentNode.removeChild(this.iframe);
+    if (this.button && this.button.parentNode) {
+      this.button.parentNode.removeChild(this.button);
+    }
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
     }
     this.isIframePresent = false;
     this.isReady = false;
+    this.isOpen = false;
   }
 }
 
