@@ -92,11 +92,21 @@ class AskAiroChat {
     const zIndex = options?.zIndex || 9999;
     const offset = options?.offset || 20;
 
-    button.innerHTML = `
+    // Chat icon SVG (default - when closed)
+    const chatIcon = `
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; fill: white;">
         <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
       </svg>
     `;
+
+    // Close/X icon SVG (when open)
+    const closeIcon = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; fill: white;">
+        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+      </svg>
+    `;
+
+    button.innerHTML = chatIcon;
 
     button.setAttribute('aria-label', 'Open Ask Airo Chat');
     button.setAttribute('role', 'button');
@@ -183,47 +193,7 @@ class AskAiroChat {
     iframe.setAttribute('allow', 'microphone; camera');
     iframe.setAttribute('title', 'Ask Airo Chat');
 
-    // Close button
-    const closeButton = document.createElement("button");
-    closeButton.innerHTML = "×";
-    closeButton.setAttribute('aria-label', 'Close chat');
-    closeButton.style.cssText = `
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.5);
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: ${zIndex + 10};
-      transition: all 0.2s;
-      color: white;
-      font-size: 20px;
-      line-height: 1;
-      padding: 0;
-    `;
-
-    closeButton.addEventListener("mouseenter", () => {
-      closeButton.style.background = "rgba(0, 0, 0, 0.7)";
-      closeButton.style.transform = "rotate(90deg)";
-    });
-
-    closeButton.addEventListener("mouseleave", () => {
-      closeButton.style.background = "rgba(0, 0, 0, 0.5)";
-      closeButton.style.transform = "rotate(0deg)";
-    });
-
-    closeButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.close();
-    });
-
-    container.appendChild(closeButton);
+    // No close button - removed as requested
     container.appendChild(iframe);
 
     // Set container styles - HIDDEN by default
@@ -294,6 +264,25 @@ class AskAiroChat {
     }
   }
 
+  updateButtonIcon(isOpen) {
+    if (!this.button) return;
+
+    const chatIcon = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; fill: white;">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+      </svg>
+    `;
+
+    const closeIcon = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; fill: white;">
+        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+      </svg>
+    `;
+
+    this.button.innerHTML = isOpen ? closeIcon : chatIcon;
+    this.button.setAttribute('aria-label', isOpen ? 'Close Ask Airo Chat' : 'Open Ask Airo Chat');
+  }
+
   open() {
     if (this.isOpen) return;
     this.isOpen = true;
@@ -302,6 +291,7 @@ class AskAiroChat {
     this.container.style.transform = "scale(1) translateY(0)";
     this.container.style.pointerEvents = "all";
     this.button.style.transform = "scale(0.9)";
+    this.updateButtonIcon(true); // Show close icon
     if (this.iframe) {
       this.iframe.focus();
     }
@@ -315,6 +305,7 @@ class AskAiroChat {
     this.container.style.transform = "scale(0.8) translateY(20px)";
     this.container.style.pointerEvents = "none";
     this.button.style.transform = "scale(1)";
+    this.updateButtonIcon(false); // Show chat icon
   }
 
   toggle() {
