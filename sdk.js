@@ -3,370 +3,272 @@
  * A lightweight, embeddable chat widget that opens Aura chat in an iframe
  */
 
-(function(window, document) {
-  'use strict';
+function log(...objects) {
+  if (window.origin.includes("localhost")) console.log(...objects);
+}
 
-  // Default configuration
-  const DEFAULT_CONFIG = {
-    baseUrl: 'https://ask-airo-dot-aichat-408808.ey.r.appspot.com',
-    position: 'bottom-right', // 'bottom-right', 'bottom-left', 'top-right', 'top-left'
-    buttonColor: '#3b82f6', // Blue color
-    buttonSize: 60, // Size in pixels
-    iframeWidth: 400,
-    iframeHeight: 600,
-    zIndex: 9999,
-    autoOpen: false
+const ENV = {
+  PRODUCTION: "production",
+  STAGING: "staging",
+  DEV: "dev",
+};
+
+const IFRAME_SRC_MAP = {
+  [ENV.PRODUCTION]: "https://ask-airo-dot-aichat-408808.ey.r.appspot.com",
+  [ENV.STAGING]: "https://ask-airo-dot-aichat-408808.ey.r.appspot.com",
+  [ENV.DEV]: "https://ask-airo-dot-aichat-408808.ey.r.appspot.com",
+};
+
+class AskAiroChat {
+  isIframePresent = false;
+  isReady = false;
+
+  MESSAGE_TYPES = {
+    IS_READY: "is_ready",
+    IS_CHATBOX_OPEN: "is_chatbox_open",
+    SET_STYLES: "set_styles",
+    URL_CHANGED: "url_changed",
   };
 
-  class AskAiroChat {
-    constructor(config = {}) {
-      this.config = { ...DEFAULT_CONFIG, ...config };
-      this.isOpen = false;
-      this.widgetId = 'aura-chat-widget-' + Date.now();
-      this.init();
-    }
+  CLOSED_CHAT_WIDTH = "60px";
+  CLOSED_CHAT_HEIGHT = "60px";
+  OPEN_CHAT_WIDTH = "400px";
+  OPEN_CHAT_HEIGHT = "600px";
 
-    init() {
-      // Create styles
-      this.injectStyles();
-      
-      // Create button
-      this.createButton();
-      
-      // Create iframe container
-      this.createIframeContainer();
+  constructor(options = {}) {
+    if (this.isIframePresent) return;
 
-      // Auto open if configured
-      if (this.config.autoOpen) {
-        setTimeout(() => this.toggle(), 100);
+    const iframe = document.createElement("IFRAME");
+    const env = options?.env || ENV.PRODUCTION;
+    const baseUrl = options?.baseUrl || IFRAME_SRC_MAP[env];
+    const IFRAME_SRC = `${baseUrl}/chat`;
+
+    iframe.src = IFRAME_SRC;
+    this.iframe = iframe;
+    this.baseUrl = baseUrl;
+    this.options = options;
+
+    document.body.appendChild(this.iframe);
+    this.isIframePresent = true;
+
+    this.setStyles(options);
+
+    const handleMessage = (event) => {
+      // Allow messages from the base URL (without path)
+      const allowedOrigin = baseUrl;
+      if (!event.origin.includes(allowedOrigin.replace(/^https?:\/\//, "").split("/")[0])) {
+        return;
       }
-    }
 
-    injectStyles() {
-      if (document.getElementById('aura-widget-styles')) {
-        return; // Styles already injected
+      log("MESSAGE FROM IFRAME", event.data);
+
+      if (event.data?.type === this.MESSAGE_TYPES.IS_READY) {
+        this.isReady = true;
+      } else if (event.data?.type === this.MESSAGE_TYPES.IS_CHATBOX_OPEN) {
+        if (event.data.data) {
+          this.iframe.style.width = this.OPEN_CHAT_WIDTH;
+          this.iframe.style.height = this.OPEN_CHAT_HEIGHT;
+          this.iframe.style.boxShadow =
+            "rgba(0, 0, 0, 0.3) 0 20px 60px, rgba(0, 0, 0, 0.2) 0 8px 24px";
+        } else {
+          this.iframe.style.width = this.CLOSED_CHAT_WIDTH;
+          this.iframe.style.height = this.CLOSED_CHAT_HEIGHT;
+          this.iframe.style.boxShadow = "none";
+        }
       }
+    };
 
-      const style = document.createElement('style');
-      style.id = 'aura-widget-styles';
-      style.textContent = `
-        #${this.widgetId}-button {
-          position: fixed;
-          width: ${this.config.buttonSize}px;
-          height: ${this.config.buttonSize}px;
-          border-radius: 50%;
-          background: ${this.config.buttonColor};
-          border: none;
-          cursor: pointer;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: ${this.config.zIndex};
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          padding: 0;
-          outline: none;
-        }
-        
-        #${this.widgetId}-button:hover {
-          transform: scale(1.1);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-        
-        #${this.widgetId}-button:active {
-          transform: scale(0.95);
-        }
-        
-        #${this.widgetId}-button svg {
-          width: 28px;
-          height: 28px;
-          fill: white;
-        }
-        
-        #${this.widgetId}-container {
-          position: fixed;
-          width: ${this.config.iframeWidth}px;
-          height: ${this.config.iframeHeight}px;
-          z-index: ${this.config.zIndex - 1};
-          border-radius: 12px;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
-          overflow: hidden;
-          opacity: 0;
-          transform: scale(0.8) translateY(20px);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          pointer-events: none;
-          background: white;
-        }
-        
-        #${this.widgetId}-container.open {
-          opacity: 1;
-          transform: scale(1) translateY(0);
-          pointer-events: all;
-        }
-        
-        #${this.widgetId}-iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
-          display: block;
-        }
-        
-        #${this.widgetId}-close {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: rgba(0, 0, 0, 0.5);
-          border: none;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: ${this.config.zIndex};
-          transition: all 0.2s;
-          color: white;
-          font-size: 20px;
-          line-height: 1;
-          padding: 0;
-        }
-        
-        #${this.widgetId}-close:hover {
-          background: rgba(0, 0, 0, 0.7);
-          transform: rotate(90deg);
-        }
-        
-        @media (max-width: 480px) {
-          #${this.widgetId}-container {
-            width: 100vw;
-            height: 100vh;
-            border-radius: 0;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-          }
-        }
-      `;
-      
-      document.head.appendChild(style);
-    }
+    window.addEventListener("message", handleMessage);
+    this.trackUrlChanges();
 
-    getPositionStyles() {
-      const offset = 20;
-      const buttonSize = this.config.buttonSize;
-      
-      const positions = {
-        'bottom-right': {
-          button: {
-            bottom: `${offset}px`,
-            right: `${offset}px`
-          },
-          container: {
-            bottom: `${buttonSize + offset + 10}px`,
-            right: `${offset}px`
-          }
-        },
-        'bottom-left': {
-          button: {
-            bottom: `${offset}px`,
-            left: `${offset}px`
-          },
-          container: {
-            bottom: `${buttonSize + offset + 10}px`,
-            left: `${offset}px`
-          }
-        },
-        'top-right': {
-          button: {
-            top: `${offset}px`,
-            right: `${offset}px`
-          },
-          container: {
-            top: `${buttonSize + offset + 10}px`,
-            right: `${offset}px`
-          }
-        },
-        'top-left': {
-          button: {
-            top: `${offset}px`,
-            left: `${offset}px`
-          },
-          container: {
-            top: `${buttonSize + offset + 10}px`,
-            left: `${offset}px`
-          }
-        }
-      };
-      
-      return positions[this.config.position] || positions['bottom-right'];
-    }
+    // Send ready message after a short delay to allow iframe to load
+    setTimeout(() => {
+      this.sendMessage({ type: this.MESSAGE_TYPES.IS_READY });
+    }, 100);
+  }
 
-    createButton() {
-      const button = document.createElement('button');
-      button.id = `${this.widgetId}-button`;
-      button.setAttribute('aria-label', 'Open Aura Chat');
-      button.setAttribute('role', 'button');
-      
-      // Chat icon SVG
-      button.innerHTML = `
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-        </svg>
-      `;
-      
-      const positionStyles = this.getPositionStyles();
-      Object.assign(button.style, positionStyles.button);
-      
-      button.addEventListener('click', () => this.toggle());
-      
-      document.body.appendChild(button);
-      this.button = button;
-    }
-
-    createIframeContainer() {
-      const container = document.createElement('div');
-      container.id = `${this.widgetId}-container`;
-      
-      const positionStyles = this.getPositionStyles();
-      Object.assign(container.style, positionStyles.container);
-      
-      // Close button
-      const closeButton = document.createElement('button');
-      closeButton.id = `${this.widgetId}-close`;
-      closeButton.innerHTML = '×';
-      closeButton.setAttribute('aria-label', 'Close chat');
-      closeButton.addEventListener('click', () => this.close());
-      
-      // Iframe
-      const iframe = document.createElement('iframe');
-      iframe.id = `${this.widgetId}-iframe`;
-      iframe.src = `${this.config.baseUrl}/chat`;
-      iframe.setAttribute('allow', 'microphone; camera');
-      iframe.setAttribute('title', 'Aura Chat');
-      
-      container.appendChild(closeButton);
-      container.appendChild(iframe);
-      
-      document.body.appendChild(container);
-      this.container = container;
-      this.iframe = iframe;
-    }
-
-    open() {
-      if (this.isOpen) return;
-      
-      this.isOpen = true;
-      this.container.classList.add('open');
-      this.button.style.transform = 'scale(0.9)';
-      
-      // Focus management
-      this.iframe.focus();
-    }
-
-    close() {
-      if (!this.isOpen) return;
-      
-      this.isOpen = false;
-      this.container.classList.remove('open');
-      this.button.style.transform = '';
-    }
-
-    toggle() {
-      if (this.isOpen) {
-        this.close();
-      } else {
-        this.open();
-      }
-    }
-
-    destroy() {
-      if (this.button && this.button.parentNode) {
-        this.button.parentNode.removeChild(this.button);
-      }
-      if (this.container && this.container.parentNode) {
-        this.container.parentNode.removeChild(this.container);
-      }
-      const styles = document.getElementById('aura-widget-styles');
-      if (styles && styles.parentNode) {
-        styles.parentNode.removeChild(styles);
-      }
-    }
-
-    // Public API methods
-    updateConfig(newConfig) {
-      this.config = { ...this.config, ...newConfig };
-      // Reinitialize if needed
-      this.destroy();
-      this.init();
+  sendMessage(data) {
+    if (this.iframe && this.iframe.contentWindow) {
+      this.iframe.contentWindow.postMessage(data, "*");
     }
   }
 
-  // Initialize widget when script loads (for script tag usage with data attributes)
-  function initWidget() {
-    // Skip if user already created an instance manually
-    if (window.AuraChatWidget && window.AuraChatWidget instanceof AskAiroChat) {
-      return window.AuraChatWidget;
+  setStyles(options) {
+    const position = options?.position || "bottom-right";
+    const buttonSize = options?.buttonSize || 60;
+    const buttonColor = options?.buttonColor || "#3b82f6";
+    const zIndex = options?.zIndex || 9999;
+
+    this.iframe.frameBorder = "0";
+    this.iframe.style.width = `${buttonSize}px`;
+    this.iframe.style.height = `${buttonSize}px`;
+    this.iframe.style.border = "none";
+    this.iframe.style.position = "fixed";
+    this.iframe.style.zIndex = zIndex;
+    this.iframe.style.borderRadius = "50%";
+    this.iframe.style.overflow = "hidden";
+    this.iframe.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
+    this.iframe.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)";
+
+    // Set position based on options
+    const offset = options?.offset || 20;
+    if (position === "bottom-right") {
+      this.iframe.style.bottom = `${offset}px`;
+      this.iframe.style.right = `${offset}px`;
+      this.iframe.style.left = "auto";
+      this.iframe.style.top = "auto";
+    } else if (position === "bottom-left") {
+      this.iframe.style.bottom = `${offset}px`;
+      this.iframe.style.left = `${offset}px`;
+      this.iframe.style.right = "auto";
+      this.iframe.style.top = "auto";
+    } else if (position === "top-right") {
+      this.iframe.style.top = `${offset}px`;
+      this.iframe.style.right = `${offset}px`;
+      this.iframe.style.left = "auto";
+      this.iframe.style.bottom = "auto";
+    } else if (position === "top-left") {
+      this.iframe.style.top = `${offset}px`;
+      this.iframe.style.left = `${offset}px`;
+      this.iframe.style.right = "auto";
+      this.iframe.style.bottom = "auto";
     }
-    
-    // Get config from data attributes or global config
-    const script = document.currentScript || 
-      document.querySelector('script[data-aura-config]') ||
-      document.querySelector('script[src*="sdk"]');
-    
-    let config = {};
-    
-    if (script) {
-      // Get config from data attributes
-      const baseUrl = script.getAttribute('data-base-url');
-      const position = script.getAttribute('data-position');
-      const buttonColor = script.getAttribute('data-button-color');
-      const buttonSize = script.getAttribute('data-button-size');
-      const autoOpen = script.getAttribute('data-auto-open');
-      
-      if (baseUrl) config.baseUrl = baseUrl;
-      if (position) config.position = position;
-      if (buttonColor) config.buttonColor = buttonColor;
-      if (buttonSize) config.buttonSize = parseInt(buttonSize, 10);
-      if (autoOpen) config.autoOpen = autoOpen === 'true';
-    }
-    
-    // Check for global config
-    if (window.AuraChatConfig) {
-      config = { ...config, ...window.AuraChatConfig };
-    }
-    
-    // Only auto-initialize if config is provided (via data attributes or global config)
-    if (Object.keys(config).length === 0) {
-      return null; // Don't auto-initialize if no config provided
-    }
-    
-    // Create widget instance
-    const widget = new AskAiroChat(config);
-    
-    // Expose widget to window for programmatic control (backward compatibility)
-    window.AuraChatWidget = widget;
-    
-    return widget;
+
+    // Allow custom positioning
+    if (options?.bottom !== undefined) this.iframe.style.bottom = options.bottom;
+    if (options?.top !== undefined) this.iframe.style.top = options.top;
+    if (options?.left !== undefined) this.iframe.style.left = options.left;
+    if (options?.right !== undefined) this.iframe.style.right = options.right;
+
+    // Send styles to iframe if needed
+    this.sendMessage({
+      type: this.MESSAGE_TYPES.SET_STYLES,
+      data: options,
+    });
   }
 
-  // Expose class to global window immediately
-  window.AskAiroChat = AskAiroChat;
-  // Backward compatibility
-  window.AuraChatWidget = AskAiroChat;
+  // Track URL changes and send to iframe
+  trackUrlChanges() {
+    const sendUrlToIframe = () => {
+      const currentUrl = window.location.href;
+      this.sendMessage({
+        type: this.MESSAGE_TYPES.URL_CHANGED,
+        url: currentUrl,
+      });
+    };
 
-  // Export for CommonJS (Node.js)
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = AskAiroChat;
+    // Intercept pushState and replaceState
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = (...args) => {
+      originalPushState.apply(history, args);
+      sendUrlToIframe();
+    };
+
+    history.replaceState = (...args) => {
+      originalReplaceState.apply(history, args);
+      sendUrlToIframe();
+    };
+
+    // Listen to back/forward navigation (popstate)
+    window.addEventListener("popstate", sendUrlToIframe);
+
+    // Send initial URL when SDK is loaded
+    sendUrlToIframe();
   }
 
-  // Auto-initialize when DOM is ready (only for script tag usage)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initWidget);
-  } else {
-    // DOM already ready, initialize immediately
-    setTimeout(initWidget, 0);
+  // Public API methods
+  open() {
+    this.sendMessage({ type: "open_chat" });
   }
 
-})(window, document);
+  close() {
+    this.sendMessage({ type: "close_chat" });
+  }
+
+  toggle() {
+    this.sendMessage({ type: "toggle_chat" });
+  }
+
+  updateConfig(newConfig) {
+    this.options = { ...this.options, ...newConfig };
+    this.setStyles(this.options);
+  }
+
+  destroy() {
+    if (this.iframe && this.iframe.parentNode) {
+      this.iframe.parentNode.removeChild(this.iframe);
+    }
+    this.isIframePresent = false;
+    this.isReady = false;
+  }
+}
+
+// Initialize widget when script loads (for script tag usage with data attributes)
+function initWidget() {
+  // Skip if user already created an instance manually
+  if (window.AuraChatWidget && window.AuraChatWidget instanceof AskAiroChat) {
+    return window.AuraChatWidget;
+  }
+
+  // Get config from data attributes or global config
+  const script = document.currentScript ||
+    document.querySelector('script[data-aura-config]') ||
+    document.querySelector('script[src*="sdk"]');
+
+  let config = {};
+
+  if (script) {
+    // Get config from data attributes
+    const baseUrl = script.getAttribute('data-base-url');
+    const env = script.getAttribute('data-env');
+    const position = script.getAttribute('data-position');
+    const buttonColor = script.getAttribute('data-button-color');
+    const buttonSize = script.getAttribute('data-button-size');
+    const zIndex = script.getAttribute('data-z-index');
+
+    if (baseUrl) config.baseUrl = baseUrl;
+    if (env) config.env = env;
+    if (position) config.position = position;
+    if (buttonColor) config.buttonColor = buttonColor;
+    if (buttonSize) config.buttonSize = parseInt(buttonSize, 10);
+    if (zIndex) config.zIndex = parseInt(zIndex, 10);
+  }
+
+  // Check for global config
+  if (window.AuraChatConfig) {
+    config = { ...config, ...window.AuraChatConfig };
+  }
+
+  // Only auto-initialize if config is provided (via data attributes or global config)
+  if (Object.keys(config).length === 0 && !config.baseUrl) {
+    return null; // Don't auto-initialize if no config provided
+  }
+
+  // Create widget instance
+  const widget = new AskAiroChat(config);
+
+  // Expose widget to window for programmatic control (backward compatibility)
+  window.AuraChatWidget = widget;
+
+  return widget;
+}
+
+// Expose to global window
+window.AskAiroChat = AskAiroChat;
+// Backward compatibility
+window.AuraChatWidget = AskAiroChat;
+
+// Export for CommonJS (Node.js)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = AskAiroChat;
+}
+
+// Auto-initialize when DOM is ready (only for script tag usage)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initWidget);
+} else {
+  // DOM already ready, initialize immediately
+  setTimeout(initWidget, 0);
+}
