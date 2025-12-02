@@ -167,6 +167,10 @@ class AskAiroChat {
     const iframeWidth = options?.iframeWidth || 400;
     const iframeHeight = options?.iframeHeight || 600;
 
+    // Create unique ID for container
+    const containerId = 'aura-chat-container-' + Date.now();
+    container.id = containerId;
+
     iframe.src = this.iframeSrc;
     iframe.frameBorder = "0";
     iframe.style.cssText = `
@@ -174,6 +178,7 @@ class AskAiroChat {
       height: 100%;
       border: none;
       display: block;
+      background: white;
     `;
     iframe.setAttribute('allow', 'microphone; camera');
     iframe.setAttribute('title', 'Ask Airo Chat');
@@ -195,7 +200,7 @@ class AskAiroChat {
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: ${zIndex + 1};
+      z-index: ${zIndex + 10};
       transition: all 0.2s;
       color: white;
       font-size: 20px;
@@ -213,13 +218,15 @@ class AskAiroChat {
       closeButton.style.transform = "rotate(0deg)";
     });
 
-    closeButton.addEventListener("click", () => {
+    closeButton.addEventListener("click", (e) => {
+      e.stopPropagation();
       this.close();
     });
 
     container.appendChild(closeButton);
     container.appendChild(iframe);
 
+    // Set container styles - HIDDEN by default
     container.style.cssText = `
       position: fixed;
       width: ${iframeWidth}px;
@@ -229,10 +236,12 @@ class AskAiroChat {
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
       overflow: hidden;
       opacity: 0;
+      visibility: hidden;
       transform: scale(0.8) translateY(20px);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       pointer-events: none;
       background: white;
+      display: block;
     `;
 
     // Set position based on button position
@@ -250,10 +259,10 @@ class AskAiroChat {
       container.style.left = `${offset}px`;
     }
 
-    // Mobile responsive
+    // Mobile responsive styles
     const mobileStyle = `
       @media (max-width: 480px) {
-        #${container.id || 'aura-chat-container'} {
+        #${containerId} {
           width: 100vw !important;
           height: 100vh !important;
           border-radius: 0 !important;
@@ -273,7 +282,7 @@ class AskAiroChat {
       document.head.appendChild(style);
     }
 
-    container.id = 'aura-chat-container-' + Date.now();
+    // Append container to body (separate from button)
     document.body.appendChild(container);
     this.container = container;
     this.iframe = iframe;
@@ -289,6 +298,7 @@ class AskAiroChat {
     if (this.isOpen) return;
     this.isOpen = true;
     this.container.style.opacity = "1";
+    this.container.style.visibility = "visible";
     this.container.style.transform = "scale(1) translateY(0)";
     this.container.style.pointerEvents = "all";
     this.button.style.transform = "scale(0.9)";
@@ -301,6 +311,7 @@ class AskAiroChat {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.container.style.opacity = "0";
+    this.container.style.visibility = "hidden";
     this.container.style.transform = "scale(0.8) translateY(20px)";
     this.container.style.pointerEvents = "none";
     this.button.style.transform = "scale(1)";
