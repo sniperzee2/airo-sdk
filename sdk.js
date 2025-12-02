@@ -40,7 +40,7 @@ class AskAiroChat {
     if (this.isIframePresent) return;
 
     const env = options?.env || ENV.PRODUCTION;
-    const baseUrl = options?.baseUrl || IFRAME_SRC_MAP[env];
+    const baseUrl = options?.baseUrl || "https://ask-airo-dot-aichat-408808.ey.r.appspot.com";
     const IFRAME_SRC = `${baseUrl}/chat`;
 
     this.baseUrl = baseUrl;
