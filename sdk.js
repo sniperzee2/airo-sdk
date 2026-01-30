@@ -40,8 +40,9 @@ class AskAiroChat {
     if (this.isIframePresent) return;
 
     const env = options?.env || ENV.PRODUCTION;
-    const baseUrl = options?.baseUrl || "https://ask-airo-dot-aichat-408808.ey.r.appspot.com";
-    const IFRAME_SRC = `${baseUrl}/chat`;
+    const baseUrl =
+      options?.baseUrl || "https://ask-airo-dot-aichat-408808.ey.r.appspot.com";
+    const IFRAME_SRC = `${baseUrl}/chat/ask-airo`;
 
     this.baseUrl = baseUrl;
     this.options = options;
@@ -58,7 +59,11 @@ class AskAiroChat {
     const handleMessage = (event) => {
       // Allow messages from the base URL (without path)
       const allowedOrigin = baseUrl;
-      if (!event.origin.includes(allowedOrigin.replace(/^https?:\/\//, "").split("/")[0])) {
+      if (
+        !event.origin.includes(
+          allowedOrigin.replace(/^https?:\/\//, "").split("/")[0]
+        )
+      ) {
         return;
       }
 
@@ -107,8 +112,8 @@ class AskAiroChat {
 
     button.innerHTML = airoIcon;
 
-    button.setAttribute('aria-label', 'Open Ask Airo Chat');
-    button.setAttribute('role', 'button');
+    button.setAttribute("aria-label", "Open Ask Airo Chat");
+    button.setAttribute("role", "button");
     button.style.cssText = `
       position: fixed;
       width: ${buttonSize}px;
@@ -150,12 +155,14 @@ class AskAiroChat {
 
     button.addEventListener("mouseenter", () => {
       button.style.transform = "scale(1.1)";
-      button.style.boxShadow = "0 6px 16px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.15)";
+      button.style.boxShadow =
+        "0 6px 16px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.15)";
     });
 
     button.addEventListener("mouseleave", () => {
       button.style.transform = "scale(1)";
-      button.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)";
+      button.style.boxShadow =
+        "0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)";
     });
 
     button.addEventListener("click", () => {
@@ -177,7 +184,7 @@ class AskAiroChat {
     const iframeHeight = options?.iframeHeight || 600;
 
     // Create unique ID for container
-    const containerId = 'aura-chat-container-' + Date.now();
+    const containerId = "aura-chat-container-" + Date.now();
     container.id = containerId;
 
     iframe.src = this.iframeSrc;
@@ -189,8 +196,8 @@ class AskAiroChat {
       display: block;
       background: white;
     `;
-    iframe.setAttribute('allow', 'microphone; camera');
-    iframe.setAttribute('title', 'Ask Airo Chat');
+    iframe.setAttribute("allow", "microphone; camera");
+    iframe.setAttribute("title", "Ask Airo Chat");
 
     // No close button - removed as requested
     container.appendChild(iframe);
@@ -244,9 +251,9 @@ class AskAiroChat {
     `;
 
     // Inject mobile styles if not already present
-    if (!document.getElementById('aura-chat-mobile-styles')) {
-      const style = document.createElement('style');
-      style.id = 'aura-chat-mobile-styles';
+    if (!document.getElementById("aura-chat-mobile-styles")) {
+      const style = document.createElement("style");
+      style.id = "aura-chat-mobile-styles";
       style.textContent = mobileStyle;
       document.head.appendChild(style);
     }
@@ -279,7 +286,10 @@ class AskAiroChat {
     `;
 
     this.button.innerHTML = isOpen ? closeIcon : airoIcon;
-    this.button.setAttribute('aria-label', isOpen ? 'Close Ask Airo Chat' : 'Open Ask Airo Chat');
+    this.button.setAttribute(
+      "aria-label",
+      isOpen ? "Close Ask Airo Chat" : "Open Ask Airo Chat"
+    );
   }
 
   open() {
@@ -377,20 +387,21 @@ function initWidget() {
   }
 
   // Get config from data attributes or global config
-  const script = document.currentScript ||
-    document.querySelector('script[data-aura-config]') ||
+  const script =
+    document.currentScript ||
+    document.querySelector("script[data-aura-config]") ||
     document.querySelector('script[src*="sdk"]');
 
   let config = {};
 
   if (script) {
     // Get config from data attributes
-    const baseUrl = script.getAttribute('data-base-url');
-    const env = script.getAttribute('data-env');
-    const position = script.getAttribute('data-position');
-    const buttonColor = script.getAttribute('data-button-color');
-    const buttonSize = script.getAttribute('data-button-size');
-    const zIndex = script.getAttribute('data-z-index');
+    const baseUrl = script.getAttribute("data-base-url");
+    const env = script.getAttribute("data-env");
+    const position = script.getAttribute("data-position");
+    const buttonColor = script.getAttribute("data-button-color");
+    const buttonSize = script.getAttribute("data-button-size");
+    const zIndex = script.getAttribute("data-z-index");
 
     if (baseUrl) config.baseUrl = baseUrl;
     if (env) config.env = env;
@@ -425,13 +436,13 @@ window.AskAiroChat = AskAiroChat;
 window.AuraChatWidget = AskAiroChat;
 
 // Export for CommonJS (Node.js)
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== "undefined" && module.exports) {
   module.exports = AskAiroChat;
 }
 
 // Auto-initialize when DOM is ready (only for script tag usage)
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initWidget);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initWidget);
 } else {
   // DOM already ready, initialize immediately
   setTimeout(initWidget, 0);
