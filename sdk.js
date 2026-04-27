@@ -19,6 +19,25 @@ const IFRAME_SRC_MAP = {
   [ENV.DEV]: "https://ask-airo-dot-aichat-408808.ey.r.appspot.com",
 };
 
+function normalizeChatType(chatType) {
+  return String(chatType).toLowerCase() === "salesforce"
+    ? "salesforce"
+    : "empower";
+}
+
+function buildIframeSrc(baseUrl, options = {}) {
+  const chatType = normalizeChatType(options.chatType || options.chat_type);
+  const query = typeof options.query === "string" ? options.query.trim() : "";
+  const params = new URLSearchParams();
+
+  params.set("chat_type", chatType);
+  if (query) {
+    params.set("query", query);
+  }
+
+  return `${baseUrl}/chat/ask-airo?${params.toString()}`;
+}
+
 class AskAiroChat {
   isIframePresent = false;
   isReady = false;
@@ -42,7 +61,7 @@ class AskAiroChat {
     const env = options?.env || ENV.PRODUCTION;
     const baseUrl =
       options?.baseUrl || "https://ask-airo-dot-aichat-408808.ey.r.appspot.com";
-    const IFRAME_SRC = `${baseUrl}/chat/ask-airo`;
+    const IFRAME_SRC = buildIframeSrc(baseUrl, options);
 
     this.baseUrl = baseUrl;
     this.options = options;
@@ -402,6 +421,8 @@ function initWidget() {
     const buttonColor = script.getAttribute("data-button-color");
     const buttonSize = script.getAttribute("data-button-size");
     const zIndex = script.getAttribute("data-z-index");
+    const chatType = script.getAttribute("data-chat-type");
+    const query = script.getAttribute("data-query");
 
     if (baseUrl) config.baseUrl = baseUrl;
     if (env) config.env = env;
@@ -409,6 +430,8 @@ function initWidget() {
     if (buttonColor) config.buttonColor = buttonColor;
     if (buttonSize) config.buttonSize = parseInt(buttonSize, 10);
     if (zIndex) config.zIndex = parseInt(zIndex, 10);
+    if (chatType) config.chatType = chatType;
+    if (query) config.query = query;
   }
 
   // Check for global config
